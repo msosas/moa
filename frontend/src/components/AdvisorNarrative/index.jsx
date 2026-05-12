@@ -8,9 +8,9 @@ export default function AdvisorNarrative({ text, source }) {
     <div className="card p-5 space-y-3">
       <div className="flex items-center gap-3">
         <div className="h-8 w-8 rounded-full bg-accent/20 text-accent flex items-center justify-center font-semibold">
-          A
+          M
         </div>
-        <div className="text-xs uppercase tracking-wide text-slate-400">Advisor</div>
+        <div className="text-xs uppercase tracking-wide text-slate-400">MOA</div>
       </div>
       {isFallback && (
         <div className="text-xs text-amber-400/80 border border-amber-500/30 bg-amber-500/5 rounded px-3 py-2">

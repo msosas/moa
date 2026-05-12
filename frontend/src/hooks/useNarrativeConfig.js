@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-const STORAGE_KEY = 'finpath:narrative_config';
+const STORAGE_KEY = 'moa:narrative_config';
 const DEFAULT = { provider: 'anthropic', model: null };
 
 function read() {

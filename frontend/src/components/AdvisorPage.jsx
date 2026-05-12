@@ -28,8 +28,8 @@ export default function AdvisorPage() {
       <header className="border-b border-slate-800/60 bg-slate-950/40 backdrop-blur sticky top-0 z-20 print:hidden">
         <div className="max-w-3xl mx-auto px-6 py-3 flex items-center justify-between">
           <div>
-            <div className="text-xl font-bold tracking-tight">FinPath <span className="text-accent">AI</span></div>
-            <div className="text-xs text-slate-400">A holistic look at your money — one plan, one professional answer.</div>
+            <div className="text-xl font-bold tracking-tight">M<span className="text-accent">O</span>A</div>
+            <div className="text-xs text-slate-400">Money Optimisation Advisor — one plan, one professional answer.</div>
           </div>
           <button className="btn-ghost text-sm" onClick={() => setGlossaryOpen(true)}>Glossary</button>
         </div>

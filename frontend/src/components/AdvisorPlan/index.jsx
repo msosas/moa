@@ -23,7 +23,7 @@ export default function AdvisorPlan({ response, profile, narrativeConfig }) {
 
       {/* Print-only report header */}
       <div className="hidden print:block">
-        <div className="text-2xl font-bold">FinPath AI — Your plan</div>
+        <div className="text-2xl font-bold">MOA — Your plan</div>
         <div className="text-xs text-slate-500">Generated {today}</div>
       </div>
 
