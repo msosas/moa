@@ -25,7 +25,9 @@ services:
       context: ./frontend
       target: prod
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+        # Empty by default: the client uses same-origin relative ``/api/*`` and
+        # nginx proxies it to the backend.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
     image: finpath-frontend:prod
     container_name: finpath-frontend-prod
     ports:

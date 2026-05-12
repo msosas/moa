@@ -12,7 +12,10 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
 
 # Build stage: compile static assets.
 FROM base AS build
-ARG VITE_API_BASE_URL=/api
+# Leave empty so the client falls back to same-origin relative ``/api/*`` paths
+# at runtime. Nginx (or whichever proxy fronts the prod stack) then routes them
+# to the backend. Override only when calling a cross-origin backend at build time.
+ARG VITE_API_BASE_URL=
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 COPY . .
 RUN npm run build

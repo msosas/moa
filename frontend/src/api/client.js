@@ -1,9 +1,16 @@
-// If VITE_API_BASE_URL is set at build time, use it. Otherwise default to the
-// current page's hostname on port 8000 so the dev server works both from
-// localhost and from any other device on the same LAN.
+// If VITE_API_BASE_URL is set at build time, use it. Otherwise pick a sensible
+// default at runtime:
+//   - On a standard port (no port, 80, 443) — implying a reverse proxy fronts
+//     the app — use a same-origin relative URL so the proxy can route /api/*
+//     to the backend.
+//   - On a non-standard port (typical dev: 5173) — hit ":8000" on the same
+//     hostname. Works for direct localhost dev and cross-LAN dev.
 function defaultBase() {
   if (typeof window === 'undefined') return 'http://localhost:8000';
-  return `${window.location.protocol}//${window.location.hostname}:8000`;
+  const { protocol, hostname, port } = window.location;
+  const isStandardPort = port === '' || port === '80' || port === '443';
+  if (isStandardPort) return '';   // same-origin relative
+  return `${protocol}//${hostname}:8000`;
 }
 
 const BASE = (import.meta.env.VITE_API_BASE_URL || defaultBase()).replace(/\/$/, '');
