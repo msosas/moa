@@ -43,6 +43,10 @@ services:
       # at runtime, which lets the dev server work from localhost and from other
       # devices on the same LAN without any host-specific config.
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+      # Comma-separated extra hostnames Vite's dev server should accept. Use
+      # "*" / "all" to disable the host check entirely. Leave empty for the
+      # Vite default (localhost only).
+      VITE_ALLOWED_HOSTS: ${VITE_ALLOWED_HOSTS:-}
     ports:
       - "5173:5173"
     volumes:
