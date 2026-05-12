@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background: radial-gradient(ellipse at top, #16223d 0%, #0b1220 60%) fixed;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@layer components {
+  .card {
+    @apply bg-carbon border border-slate-800/60 rounded-2xl shadow-card;
+  }
+  .input {
+    @apply w-full bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-accent/60;
+  }
+  .label {
+    @apply block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium transition;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-slate-900 hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply btn border border-slate-700 hover:border-slate-500 text-slate-300;
+  }
+  .term {
+    @apply underline decoration-dotted decoration-slate-500 underline-offset-4 cursor-help text-slate-200;
+  }
+}
+
+@media print {
+  :root { color-scheme: light; }
+  html, body, #root { height: auto; background: white !important; }
+  body {
+    background: white !important;
+    color: #0b1220 !important;
+    font-size: 11pt;
+  }
+  /* Card-style panels become flat, framed light boxes. */
+  .card,
+  .bg-carbon,
+  .bg-slate-900\/40,
+  .bg-slate-950\/40 {
+    background: white !important;
+    box-shadow: none !important;
+    border-color: #cbd5e1 !important;
+  }
+  /* Invert slate text colors to readable shades on paper. */
+  .text-slate-100, .text-slate-200, .text-slate-300 { color: #0b1220 !important; }
+  .text-slate-400 { color: #334155 !important; }
+  .text-slate-500 { color: #475569 !important; }
+  .text-accent { color: #047857 !important; }   /* deep emerald reads well in print */
+  .text-risk   { color: #b91c1c !important; }
+  /* Border / divider colors */
+  .border-slate-700,
+  .border-slate-800,
+  .border-slate-800\/60 { border-color: #cbd5e1 !important; }
+  /* Term tooltips inline-hint underlines stay subtle. */
+  .term { color: #0b1220 !important; text-decoration-color: #94a3b8 !important; }
+  /* Avoid splitting a step card across pages where possible. */
+  .card { break-inside: avoid; page-break-inside: avoid; }
+  /* Sticky elements would break print layout. */
+  header, .sticky { position: static !important; }
+  /* Drop background gradient. */
+  body { background-image: none !important; }
+}
+

@@ -1,0 +1,39 @@
+{
+  "age": 35,
+  "dependents": 1,
+  "job_stability": "moderate",
+  "time_horizon_years": 15,
+  "risk_tolerance": "medium",
+  "incomes": [
+    {"label": "Salary", "gross_amount": 95000, "frequency": "annual"}
+  ],
+  "expenses": [
+    {"category": "housing", "amount": 2200, "frequency": "monthly"},
+    {"category": "food", "amount": 800, "frequency": "monthly"},
+    {"category": "transport", "amount": 300, "frequency": "monthly"},
+    {"category": "discretionary", "amount": 700, "frequency": "monthly"}
+  ],
+  "debts": [
+    {"kind": "credit_card", "label": "Visa", "balance": 4200, "annual_rate": 0.1995, "min_monthly_payment": 120}
+  ],
+  "mortgage": {
+    "balance": 480000,
+    "annual_rate": 0.0535,
+    "term_years_remaining": 25,
+    "current_strategy": "fixed_2y"
+  },
+  "kiwisaver": {
+    "balance": 38000,
+    "employee_rate": 0.03,
+    "employer_rate": 0.03,
+    "fund_type": "growth",
+    "pir": 0.28
+  },
+  "existing_investments": [
+    {"label": "Sharesies", "vehicle": "shares", "balance": 6000}
+  ],
+  "current_emergency_fund": 1500,
+  "lump_sum_available": 12000,
+  "goals": ["build_wealth", "pay_off_debt_faster"],
+  "narration_style": "detailed"
+}

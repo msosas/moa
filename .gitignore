@@ -1,0 +1,83 @@
+# ---------- Python (backend) ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.eggs/
+build/
+develop-eggs/
+sdist/
+wheels/
+MANIFEST
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyre/
+.pytype/
+.tox/
+.nox/
+
+# Coverage
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.cover
+
+# ---------- Node / Vite (frontend) ----------
+node_modules/
+dist/
+dist-ssr/
+.vite/
+.eslintcache
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Package manager state we don't want to commit for this POC
+.pnpm-store/
+.yarn/cache
+.yarn/install-state.gz
+
+# ---------- Env / secrets ----------
+# Only .env.example is committed. dev.env / prod.env stay local.
+.env
+.env.local
+.env.*.local
+.env.prod
+dev.env
+prod.env
+
+# Certs / keys
+*.pem
+*.key
+
+# ---------- Editors / OS ----------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ---------- Claude Code (local-only) ----------
+.claude/settings.local.json
+
+# ---------- Misc ----------
+*.bak
+*.tmp

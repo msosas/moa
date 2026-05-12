@@ -1,0 +1,52 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    image: finpath-backend:dev
+    container_name: finpath-backend-dev
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      RATE_PROVIDER_TYPE: ${RATE_PROVIDER_TYPE:-mock}
+      API_NINJAS_KEY: ${API_NINJAS_KEY:-}
+      RATES_CACHE_TTL_SECONDS: ${RATES_CACHE_TTL_SECONDS:-3600}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      ADVISOR_MODEL: ${ADVISOR_MODEL:-claude-sonnet-4-6}
+      ADVISOR_NARRATIVE_ENABLED: ${ADVISOR_NARRATIVE_ENABLED:-true}
+      ADVISOR_MAX_OUTPUT_TOKENS: ${ADVISOR_MAX_OUTPUT_TOKENS:-800}
+    # ``host.docker.internal`` resolves to the host machine — needed so the
+    # backend container can reach an Ollama server running on the host.
+    # Built-in on Mac/Windows; Linux needs the explicit ``host-gateway`` map.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health').status==200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    image: finpath-frontend:dev
+    container_name: finpath-frontend-dev
+    command: npm run dev -- --host 0.0.0.0 --port 5173
+    environment:
+      # Empty by default: the client falls back to window.location.hostname:8000
+      # at runtime, which lets the dev server work from localhost and from other
+      # devices on the same LAN without any host-specific config.
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend

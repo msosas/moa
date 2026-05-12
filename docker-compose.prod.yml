@@ -1,0 +1,35 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      target: prod
+    image: finpath-backend:prod
+    container_name: finpath-backend-prod
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    environment:
+      RATE_PROVIDER_TYPE: ${RATE_PROVIDER_TYPE:-live}
+      API_NINJAS_KEY: ${API_NINJAS_KEY:-}
+      RATES_CACHE_TTL_SECONDS: ${RATES_CACHE_TTL_SECONDS:-3600}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      ADVISOR_MODEL: ${ADVISOR_MODEL:-claude-sonnet-4-6}
+      ADVISOR_NARRATIVE_ENABLED: ${ADVISOR_NARRATIVE_ENABLED:-true}
+      ADVISOR_MAX_OUTPUT_TOKENS: ${ADVISOR_MAX_OUTPUT_TOKENS:-800}
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      target: prod
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    image: finpath-frontend:prod
+    container_name: finpath-frontend-prod
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
