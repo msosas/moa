@@ -15,7 +15,7 @@ from app.models.profile import (
     MortgageOverride,
     WhatIfMortgageRequest,
 )
-from app.services.advisor_llm import AdvisorLLM, ModelInfo, NarrativeProvider, get_advisor_llm
+from app.services.advisor_llm import AdvisorLLM, NarrativeProvider, get_advisor_llm
 from app.services.rates import RateProvider, get_provider
 
 router = APIRouter(prefix="/advisor", tags=["advisor"])
@@ -29,7 +29,7 @@ def _advisor_llm_dep() -> AdvisorLLM:
     return get_advisor_llm()
 
 
-ProviderQuery = Query(None, description="Narrative provider: anthropic / ollama / templated")
+ProviderQuery = Query(None, description="Narrative provider: ollama / templated")
 ModelQuery = Query(None, description="Specific model id to use (provider-specific)")
 
 
@@ -90,7 +90,7 @@ class ModelListResponse(BaseModel):
 
 @router.get("/models", response_model=ModelListResponse)
 async def list_models(
-    provider: Literal["anthropic", "ollama", "templated"] = Query(
+    provider: Literal["ollama", "templated"] = Query(
         "ollama", description="Provider to list models for",
     ),
     llm: AdvisorLLM = Depends(_advisor_llm_dep),
@@ -98,7 +98,6 @@ async def list_models(
     """List models available for a given narrative provider.
 
     For ``ollama`` this hits the configured Ollama instance's ``/api/tags``.
-    For ``anthropic`` it returns a curated preset list (only if a key is set).
     For ``templated`` it returns the single deterministic option.
     """
     items = await llm.list_models(provider)

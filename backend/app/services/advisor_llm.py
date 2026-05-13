@@ -1,19 +1,15 @@
 """LLM narrative service.
 
 Turns a structured ``RecommendedPlan`` into a conversational advisor-style
-explanation. Two providers are supported:
+explanation via a local Ollama instance (default
+``http://host.docker.internal:11434``).
 
-- ``anthropic``: Anthropic Messages API (Claude). Uses prompt-cached system
-  blocks for cost efficiency.
-- ``ollama``: a local Ollama instance (default ``http://host.docker.internal:11434``).
-  Useful for offline / private use and zero API spend.
+The cardinal rule: the LLM never invents numbers — it only paraphrases what
+the waterfall already computed.
 
-The cardinal rule for both: the LLM never invents numbers — it only paraphrases
-what the waterfall already computed.
-
-The demo-never-breaks contract extends here: any provider failure (missing key,
-5xx, timeout, schema drift) returns a templated narrative built from each
-step's ``RationaleBlock``, with ``source="fallback"``.
+The demo-never-breaks contract extends here: any provider failure (missing
+URL, 5xx, timeout, empty response, no models installed) returns a templated
+narrative built from each step's ``RationaleBlock``, with ``source="fallback"``.
 """
 
 from __future__ import annotations
@@ -21,19 +17,17 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from typing import Any, ClassVar, Literal
+from typing import Any, Literal
 
-import anthropic
 import httpx
 
 from app.models.profile import FinancialProfile, NarrativeSource, RecommendedPlan
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6"
 DEFAULT_OLLAMA_BASE_URL = "http://host.docker.internal:11434"
 
-NarrativeProvider = Literal["anthropic", "ollama", "templated"]
+NarrativeProvider = Literal["ollama", "templated"]
 
 
 _PERSONA = """\
@@ -103,7 +97,6 @@ Hard constraints for every reply:
 5. Aim for 250–400 words. Use short paragraphs, not bullet lists.\
 """
 
-# Pre-joined system text for providers that don't support multi-block systems.
 _SYSTEM_COMBINED = "\n\n".join([_PERSONA, _NZ_PRIMER, _PLAN_SCHEMA, _CONSTRAINTS])
 
 
@@ -113,7 +106,7 @@ class NarrativeResult:
     source: NarrativeSource              # "llm" | "fallback"
     provider: NarrativeProvider | None = None
     model: str | None = None
-    cache_read_tokens: int | None = None
+    cache_read_tokens: int | None = None  # Always None for Ollama; kept for wire compat.
 
 
 @dataclass
@@ -124,27 +117,19 @@ class ModelInfo:
 
 
 class AdvisorLLM:
-    """Dispatches narrative generation to Anthropic, a local Ollama, or the templated fallback."""
-
-    DEFAULT_ANTHROPIC_MODEL: ClassVar[str] = DEFAULT_ANTHROPIC_MODEL
+    """Narrates a plan via a local Ollama server, with a templated fallback."""
 
     def __init__(
         self,
         *,
-        anthropic_api_key: str | None = None,
-        ollama_base_url: str | None = None,
-        anthropic_model: str = DEFAULT_ANTHROPIC_MODEL,
+        ollama_base_url: str | None = DEFAULT_OLLAMA_BASE_URL,
         enabled: bool = True,
         max_output_tokens: int = 800,
-        anthropic_client: anthropic.AsyncAnthropic | None = None,
         ollama_client: httpx.AsyncClient | None = None,
     ) -> None:
-        self._anthropic_api_key = anthropic_api_key
         self._ollama_base_url = (ollama_base_url or "").rstrip("/") or None
-        self._anthropic_model = anthropic_model
         self._enabled = enabled
         self._max_output_tokens = max_output_tokens
-        self._anthropic_client = anthropic_client
         self._ollama_client = ollama_client
 
     # --- Public API ----------------------------------------------------------
@@ -157,96 +142,35 @@ class AdvisorLLM:
         provider: NarrativeProvider | None = None,
         model: str | None = None,
     ) -> NarrativeResult:
-        if not self._enabled:
-            return _fallback_result(profile, plan, reason="disabled")
-
-        chosen = self._resolve_provider(provider)
-        if chosen == "anthropic":
-            return await self._narrate_anthropic(profile, plan, model or self._anthropic_model)
-        if chosen == "ollama":
-            return await self._narrate_ollama(profile, plan, model)
-        return _fallback_result(profile, plan, reason="no provider configured")
+        if not self._enabled or provider == "templated":
+            return _fallback_result(
+                profile, plan,
+                reason="disabled" if not self._enabled else "templated requested",
+            )
+        if not self._ollama_base_url:
+            return _fallback_result(profile, plan, reason="no Ollama URL configured")
+        return await self._narrate_ollama(profile, plan, model)
 
     async def list_models(self, provider: NarrativeProvider) -> list[ModelInfo]:
         """Return the models available for the given provider.
 
-        For Anthropic this is a hardcoded preset list. For Ollama we hit
-        ``/api/tags`` on the configured base URL.
+        - ``ollama`` hits ``/api/tags`` on the configured base URL.
+        - ``templated`` returns the single deterministic option.
         """
-        if provider == "anthropic":
-            if not self._anthropic_api_key:
-                return []
-            return [
-                ModelInfo(id="claude-opus-4-7",    label="Claude Opus 4.7",    provider="anthropic"),
-                ModelInfo(id="claude-sonnet-4-6",  label="Claude Sonnet 4.6",  provider="anthropic"),
-                ModelInfo(id="claude-haiku-4-5",   label="Claude Haiku 4.5",   provider="anthropic"),
-            ]
+        if provider == "templated":
+            return [ModelInfo(id="templated", label="Templated (no LLM)", provider="templated")]
         if provider == "ollama":
             if not self._ollama_base_url:
                 return []
             return await self._fetch_ollama_models()
-        if provider == "templated":
-            return [ModelInfo(id="templated", label="Templated (no LLM)", provider="templated")]
         return []
-
-    # --- Resolution helpers --------------------------------------------------
-
-    def _resolve_provider(self, provider: NarrativeProvider | None) -> NarrativeProvider | None:
-        """Pick a provider: the explicit one if usable, else best-available default."""
-        if provider == "templated":
-            return None  # signals fallback
-        if provider == "anthropic" and self._anthropic_api_key:
-            return "anthropic"
-        if provider == "ollama" and self._ollama_base_url:
-            return "ollama"
-        if provider is None:
-            if self._anthropic_api_key:
-                return "anthropic"
-            if self._ollama_base_url:
-                return "ollama"
-        return None
-
-    # --- Anthropic -----------------------------------------------------------
-
-    async def _narrate_anthropic(
-        self, profile: FinancialProfile, plan: RecommendedPlan, model: str,
-    ) -> NarrativeResult:
-        try:
-            client = self._anthropic_client or anthropic.AsyncAnthropic(api_key=self._anthropic_api_key)
-            resp = await client.messages.create(
-                model=model,
-                max_tokens=self._max_output_tokens,
-                system=[
-                    {"type": "text", "text": _PERSONA,     "cache_control": {"type": "ephemeral"}},
-                    {"type": "text", "text": _NZ_PRIMER,   "cache_control": {"type": "ephemeral"}},
-                    {"type": "text", "text": _PLAN_SCHEMA, "cache_control": {"type": "ephemeral"}},
-                    {"type": "text", "text": _CONSTRAINTS, "cache_control": {"type": "ephemeral"}},
-                ],
-                messages=[{"role": "user", "content": _user_turn(profile, plan)}],
-            )
-            text = "".join(
-                block.text for block in resp.content
-                if getattr(block, "type", None) == "text"
-            )
-            usage = getattr(resp, "usage", None)
-            cache_read = getattr(usage, "cache_read_input_tokens", None) if usage else None
-            return NarrativeResult(
-                text=text.strip(),
-                source="llm",
-                provider="anthropic",
-                model=model,
-                cache_read_tokens=cache_read,
-            )
-        except Exception as exc:  # noqa: BLE001 — demo must not crash
-            logger.warning("Anthropic narrate failed (%s); falling back", exc)
-            return _fallback_result(profile, plan, reason=f"anthropic error: {exc}")
 
     # --- Ollama --------------------------------------------------------------
 
     async def _narrate_ollama(
         self, profile: FinancialProfile, plan: RecommendedPlan, model: str | None,
     ) -> NarrativeResult:
-        assert self._ollama_base_url is not None  # guarded by _resolve_provider
+        assert self._ollama_base_url is not None
         client, owns = self._get_ollama_client()
         try:
             chosen_model = model or await self._first_available_ollama_model(client)
@@ -318,7 +242,7 @@ class AdvisorLLM:
         return httpx.AsyncClient(timeout=httpx.Timeout(120.0)), True
 
 
-# --- Fallback narrative -----------------------------------------------------
+# --- Helpers ---------------------------------------------------------------
 
 def _user_turn(profile: FinancialProfile, plan: RecommendedPlan) -> str:
     payload = {
@@ -392,9 +316,7 @@ def get_advisor_llm(settings: Any | None = None) -> AdvisorLLM:
         from app.config import get_settings
         s = settings or get_settings()
         _advisor_llm_singleton = AdvisorLLM(
-            anthropic_api_key=getattr(s, "anthropic_api_key", None),
             ollama_base_url=getattr(s, "ollama_base_url", DEFAULT_OLLAMA_BASE_URL),
-            anthropic_model=getattr(s, "advisor_model", DEFAULT_ANTHROPIC_MODEL),
             enabled=getattr(s, "advisor_narrative_enabled", True),
             max_output_tokens=getattr(s, "advisor_max_output_tokens", 800),
         )

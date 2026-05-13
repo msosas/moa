@@ -14,9 +14,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
 
     # --- Advisor LLM narrative -------------------------------------------------
-    anthropic_api_key: str | None = None
     ollama_base_url: str | None = "http://host.docker.internal:11434"
-    advisor_model: str = "claude-sonnet-4-6"
     advisor_narrative_enabled: bool = True
     advisor_max_output_tokens: int = 800
 
@@ -26,9 +24,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _gate_narrative_on_provider(self) -> "Settings":
-        # Narrative is enabled if either provider is configured. If neither is,
-        # the service silently serves the templated fallback.
-        if not self.anthropic_api_key and not self.ollama_base_url:
+        # No Ollama URL configured → the service silently serves the templated fallback.
+        if not self.ollama_base_url:
             self.advisor_narrative_enabled = False
         return self
 

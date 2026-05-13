@@ -4,7 +4,7 @@ NZ holistic financial advisor POC. One unified intake (`FinancialProfile` — ca
 
 ## Stack
 
-- **Backend**: FastAPI 0.115, Pydantic v2, httpx, anthropic SDK, pytest + pytest-asyncio + respx, ruff. Python 3.11.
+- **Backend**: FastAPI 0.115, Pydantic v2, httpx, pytest + pytest-asyncio + respx, ruff. Python 3.11.
 - **Frontend**: React 18 + Vite 5 + Tailwind 3. ESLint 9 (config-less; lint target tolerated via Makefile `-`).
 - **Infra**: Docker Compose (`docker-compose.yml` dev, `docker-compose.prod.yml` prod). Makefile is the entrypoint.
 
@@ -26,7 +26,7 @@ Tests run inside the backend container — `--env-file dev.env` is required by c
 ```
 backend/app/
   main.py               FastAPI factory + CORS + advisor/health/rates routers under /api
-  config.py             Settings; gates LLM narrative off if ANTHROPIC_API_KEY is unset
+  config.py             Settings; gates LLM narrative off if OLLAMA_BASE_URL is unset
   routers/
     health.py           /api/health
     rates.py            /api/rates (market snapshot)
@@ -42,7 +42,7 @@ backend/app/
     waterfall.py        7-step financial order of operations → RecommendedPlan
   services/
     rates.py            Mock/Live provider pattern + TTL cache + graceful fallback
-    advisor_llm.py      Anthropic-backed narrative service + templated fallback
+    advisor_llm.py      Ollama-backed narrative service + templated fallback
 frontend/src/
   api/client.js         fetch wrapper hitting /api/*
   hooks/                useMarketRates, useAdvisorPlan, useWhatIfMortgage
@@ -70,14 +70,14 @@ frontend/src/
 - **Emergency fund is not compounded over the horizon.** It's a buffer that gets dipped into and refilled.
 - **Singletons** for both the rate provider and the AdvisorLLM live in their service modules; `tests/conftest.py` resets both via an autouse fixture.
 - **`RATE_PROVIDER_TYPE`** env toggles mock vs live (default mock). Live requires `API_NINJAS_KEY`.
-- **`ANTHROPIC_API_KEY`** unset → `advisor_narrative_enabled` is force-disabled by a `model_validator` in `config.py`. The frontend renders an amber "live advisor offline" ribbon; numbers are identical.
+- **`OLLAMA_BASE_URL`** unset → `advisor_narrative_enabled` is force-disabled by a `model_validator` in `config.py`. The frontend renders an amber "live advisor offline" ribbon; numbers are identical.
 - **API base path is `/api`.** Backend routers are mounted under it; frontend `client.js` hardcodes `/api/...`. In prod, nginx proxies `/api` → backend.
 - **PAYE thresholds in `nz_tax.PAYE_BRACKETS_FY26`** reflect the post-July-2024 IRD changes for FY 2025/26. Re-verify before each new tax year.
 
 ## Env files
 
 - `.env.example` — committed template.
-- `dev.env`, `prod.env` — local-only, gitignored. `prod.env` may contain real API keys (Anthropic + API Ninjas).
+- `dev.env`, `prod.env` — local-only, gitignored. `prod.env` may contain a real API Ninjas key.
 
 ## Available automations
 

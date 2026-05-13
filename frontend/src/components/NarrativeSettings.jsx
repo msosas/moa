@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client.js';
 
 const PROVIDER_OPTIONS = [
-  { id: 'anthropic', label: 'Claude (cloud)' },
   { id: 'ollama',    label: 'Local (Ollama)' },
   { id: 'templated', label: 'No LLM (templated)' },
 ];
@@ -83,11 +82,6 @@ export default function NarrativeSettings({ config, onProviderChange, onModelCha
       {!loading && !error && !models.length && config.provider === 'ollama' && (
         <span className="text-xs text-amber-400/80">
           Ollama unreachable — start it on the host (or check OLLAMA_BASE_URL).
-        </span>
-      )}
-      {!loading && !error && !models.length && config.provider === 'anthropic' && (
-        <span className="text-xs text-amber-400/80">
-          No Anthropic key configured.
         </span>
       )}
     </div>

@@ -1,18 +1,16 @@
 """Tests for the AdvisorLLM narrative service.
 
-All cases run offline by injecting an ``httpx.MockTransport`` into either the
-Anthropic SDK's underlying client or a directly-passed Ollama client. The
-demo-never-breaks contract is exercised via the 5xx, timeout, and missing-key
-paths for both providers.
+All cases run offline by injecting an ``httpx.MockTransport`` into the Ollama
+client. The demo-never-breaks contract is exercised via the 5xx, network-error,
+and no-URL / no-models paths.
 """
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 
-import anthropic
 import httpx
+import json
 
 from app.logic.waterfall import build_plan
 from app.models.profile import (
@@ -59,30 +57,6 @@ def _profile() -> FinancialProfile:
     )
 
 
-def _anthropic_success_body(text: str = "Here's what I'd suggest…") -> dict:
-    return {
-        "id": "msg_test",
-        "type": "message",
-        "role": "assistant",
-        "content": [{"type": "text", "text": text}],
-        "model": "claude-sonnet-4-6",
-        "stop_reason": "end_turn",
-        "stop_sequence": None,
-        "usage": {
-            "input_tokens": 500,
-            "output_tokens": 200,
-            "cache_creation_input_tokens": 0,
-            "cache_read_input_tokens": 480,
-        },
-    }
-
-
-def _build_anthropic_client(handler):
-    transport = httpx.MockTransport(handler)
-    http_client = httpx.AsyncClient(transport=transport, base_url="https://api.anthropic.com")
-    return anthropic.AsyncAnthropic(api_key="test-key", http_client=http_client)
-
-
 def _build_ollama_client(handler):
     return httpx.AsyncClient(transport=httpx.MockTransport(handler))
 
@@ -92,110 +66,26 @@ def _build_ollama_client(handler):
 async def test_disabled_short_circuits_no_http_call():
     profile = _profile()
     plan = build_plan(profile, _snapshot())
-    llm = AdvisorLLM(anthropic_api_key="anything", enabled=False)
+    llm = AdvisorLLM(ollama_base_url="http://ollama.test", enabled=False)
     result = await llm.narrate(profile, plan)
     assert result.source == "fallback"
     assert result.text
 
 
-async def test_no_provider_returns_fallback():
+async def test_no_url_returns_fallback():
     profile = _profile()
     plan = build_plan(profile, _snapshot())
-    llm = AdvisorLLM(anthropic_api_key=None, ollama_base_url=None, enabled=True)
+    llm = AdvisorLLM(ollama_base_url=None, enabled=True)
     result = await llm.narrate(profile, plan)
     assert result.source == "fallback"
 
 
 async def test_explicit_templated_request_skips_llm():
-    """Passing provider='templated' bypasses both backends and returns the fallback."""
+    """Passing provider='templated' bypasses Ollama and returns the fallback."""
     profile = _profile()
     plan = build_plan(profile, _snapshot())
-    llm = AdvisorLLM(anthropic_api_key="test-key", enabled=True)
+    llm = AdvisorLLM(ollama_base_url="http://ollama.test", enabled=True)
     result = await llm.narrate(profile, plan, provider="templated")
-    assert result.source == "fallback"
-
-
-# --- Anthropic success path -------------------------------------------------
-
-async def test_anthropic_success_returns_llm_text_with_cache_metadata():
-    captured: list[dict] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        captured.append(json.loads(request.content))
-        return httpx.Response(200, json=_anthropic_success_body("Walk through your plan step by step."))
-
-    client = _build_anthropic_client(handler)
-    llm = AdvisorLLM(anthropic_api_key="test-key", anthropic_client=client)
-    profile = _profile()
-    plan = build_plan(profile, _snapshot())
-    result = await llm.narrate(profile, plan)
-
-    assert result.source == "llm"
-    assert result.provider == "anthropic"
-    assert result.text == "Walk through your plan step by step."
-    assert result.cache_read_tokens == 480
-    assert result.model == "claude-sonnet-4-6"
-
-
-async def test_anthropic_system_blocks_carry_cache_control():
-    captured: list[dict] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        captured.append(json.loads(request.content))
-        return httpx.Response(200, json=_anthropic_success_body())
-
-    client = _build_anthropic_client(handler)
-    llm = AdvisorLLM(anthropic_api_key="test-key", anthropic_client=client)
-    profile = _profile()
-    plan = build_plan(profile, _snapshot())
-    await llm.narrate(profile, plan)
-
-    assert len(captured) == 1
-    system_blocks = captured[0]["system"]
-    assert len(system_blocks) == 4
-    for block in system_blocks:
-        assert block["type"] == "text"
-        assert block["cache_control"] == {"type": "ephemeral"}
-
-
-async def test_anthropic_model_override_per_request():
-    captured: list[dict] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        captured.append(json.loads(request.content))
-        return httpx.Response(200, json=_anthropic_success_body())
-
-    client = _build_anthropic_client(handler)
-    llm = AdvisorLLM(anthropic_api_key="test-key", anthropic_client=client)
-    profile = _profile()
-    plan = build_plan(profile, _snapshot())
-    await llm.narrate(profile, plan, provider="anthropic", model="claude-haiku-4-5")
-    assert captured[0]["model"] == "claude-haiku-4-5"
-
-
-# --- Anthropic failure paths ------------------------------------------------
-
-async def test_anthropic_5xx_falls_back():
-    def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(500, json={"error": {"type": "server_error", "message": "boom"}})
-
-    client = _build_anthropic_client(handler)
-    llm = AdvisorLLM(anthropic_api_key="test-key", anthropic_client=client)
-    profile = _profile()
-    plan = build_plan(profile, _snapshot())
-    result = await llm.narrate(profile, plan)
-    assert result.source == "fallback"
-
-
-async def test_anthropic_network_error_falls_back():
-    def handler(_: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("offline")
-
-    client = _build_anthropic_client(handler)
-    llm = AdvisorLLM(anthropic_api_key="test-key", anthropic_client=client)
-    profile = _profile()
-    plan = build_plan(profile, _snapshot())
-    result = await llm.narrate(profile, plan)
     assert result.source == "fallback"
 
 
@@ -218,13 +108,12 @@ async def test_ollama_narrate_success_uses_local_model():
     llm = AdvisorLLM(ollama_base_url="http://ollama.test", ollama_client=client)
     profile = _profile()
     plan = build_plan(profile, _snapshot())
-    result = await llm.narrate(profile, plan, provider="ollama", model="llama3.2:3b")
+    result = await llm.narrate(profile, plan, model="llama3.2:3b")
     assert result.source == "llm"
     assert result.provider == "ollama"
     assert result.model == "llama3.2:3b"
     assert result.text == "Local model says hi."
     assert captured[0]["model"] == "llama3.2:3b"
-    # Combined system + user messages — Ollama doesn't support multi-block systems.
     roles = [m["role"] for m in captured[0]["messages"]]
     assert roles == ["system", "user"]
 
@@ -248,10 +137,33 @@ async def test_ollama_auto_picks_first_model_when_none_specified():
     llm = AdvisorLLM(ollama_base_url="http://ollama.test", ollama_client=client)
     profile = _profile()
     plan = build_plan(profile, _snapshot())
-    result = await llm.narrate(profile, plan, provider="ollama")
+    result = await llm.narrate(profile, plan)
     assert result.source == "llm"
     assert result.model == "llama3.2:3b"
 
+
+async def test_user_message_carries_profile_and_plan_json():
+    captured: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.append(json.loads(request.content))
+        return httpx.Response(200, json={
+            "message": {"role": "assistant", "content": "ok"}, "done": True,
+        })
+
+    client = _build_ollama_client(handler)
+    llm = AdvisorLLM(ollama_base_url="http://ollama.test", ollama_client=client)
+    profile = _profile()
+    plan = build_plan(profile, _snapshot())
+    await llm.narrate(profile, plan, model="any:model")
+
+    user_content = captured[0]["messages"][1]["content"]
+    assert "profile" in user_content
+    assert "plan" in user_content
+    assert "second person" in user_content
+
+
+# --- Ollama failure paths --------------------------------------------------
 
 async def test_ollama_5xx_falls_back():
     def handler(_: httpx.Request) -> httpx.Response:
@@ -261,7 +173,34 @@ async def test_ollama_5xx_falls_back():
     llm = AdvisorLLM(ollama_base_url="http://ollama.test", ollama_client=client)
     profile = _profile()
     plan = build_plan(profile, _snapshot())
-    result = await llm.narrate(profile, plan, provider="ollama", model="anything")
+    result = await llm.narrate(profile, plan, model="anything")
+    assert result.source == "fallback"
+
+
+async def test_ollama_network_error_falls_back():
+    def handler(_: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("offline")
+
+    client = _build_ollama_client(handler)
+    llm = AdvisorLLM(ollama_base_url="http://ollama.test", ollama_client=client)
+    profile = _profile()
+    plan = build_plan(profile, _snapshot())
+    result = await llm.narrate(profile, plan, model="anything")
+    assert result.source == "fallback"
+
+
+async def test_ollama_empty_response_falls_back():
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={
+            "message": {"role": "assistant", "content": ""},
+            "done": True,
+        })
+
+    client = _build_ollama_client(handler)
+    llm = AdvisorLLM(ollama_base_url="http://ollama.test", ollama_client=client)
+    profile = _profile()
+    plan = build_plan(profile, _snapshot())
+    result = await llm.narrate(profile, plan, model="anything")
     assert result.source == "fallback"
 
 
@@ -275,23 +214,11 @@ async def test_ollama_with_no_models_falls_back():
     llm = AdvisorLLM(ollama_base_url="http://ollama.test", ollama_client=client)
     profile = _profile()
     plan = build_plan(profile, _snapshot())
-    result = await llm.narrate(profile, plan, provider="ollama")
+    result = await llm.narrate(profile, plan)
     assert result.source == "fallback"
 
 
 # --- list_models -----------------------------------------------------------
-
-async def test_list_models_anthropic_returns_curated_presets():
-    llm = AdvisorLLM(anthropic_api_key="test-key")
-    models = await llm.list_models("anthropic")
-    assert any(m.id.startswith("claude-") for m in models)
-    assert all(m.provider == "anthropic" for m in models)
-
-
-async def test_list_models_anthropic_empty_without_key():
-    llm = AdvisorLLM(anthropic_api_key=None)
-    assert await llm.list_models("anthropic") == []
-
 
 async def test_list_models_ollama_proxies_tags_endpoint():
     def handler(request: httpx.Request) -> httpx.Response:
@@ -322,27 +249,37 @@ async def test_list_models_ollama_empty_when_unreachable():
     assert await llm.list_models("ollama") == []
 
 
+async def test_list_models_templated_returns_single_option():
+    llm = AdvisorLLM(ollama_base_url=None)
+    models = await llm.list_models("templated")
+    assert len(models) == 1
+    assert models[0].id == "templated"
+
+
 # --- Fallback content ------------------------------------------------------
 
 async def test_fallback_narrative_references_all_steps():
     profile = _profile()
     plan = build_plan(profile, _snapshot())
-    llm = AdvisorLLM(anthropic_api_key=None, ollama_base_url=None, enabled=False)
+    llm = AdvisorLLM(ollama_base_url=None, enabled=False)
     result = await llm.narrate(profile, plan)
     for step in plan.steps:
         assert step.action in result.text
 
 
-async def test_brief_narration_style_passed_through_to_anthropic():
+async def test_brief_narration_style_passed_through():
     captured: list[dict] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured.append(json.loads(request.content))
-        return httpx.Response(200, json=_anthropic_success_body())
+        return httpx.Response(200, json={
+            "message": {"role": "assistant", "content": "ok"}, "done": True,
+        })
 
-    client = _build_anthropic_client(handler)
-    llm = AdvisorLLM(anthropic_api_key="test-key", anthropic_client=client)
+    client = _build_ollama_client(handler)
+    llm = AdvisorLLM(ollama_base_url="http://ollama.test", ollama_client=client)
     profile = _profile().model_copy(update={"narration_style": "brief"})
     plan = build_plan(profile, _snapshot())
-    await llm.narrate(profile, plan)
-    assert "brief voice" in captured[0]["messages"][0]["content"]
+    await llm.narrate(profile, plan, model="any:model")
+    user_content = captured[0]["messages"][1]["content"]
+    assert "brief voice" in user_content

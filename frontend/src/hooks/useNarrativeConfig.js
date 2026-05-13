@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'moa:narrative_config';
-const DEFAULT = { provider: 'anthropic', model: null };
+const DEFAULT = { provider: 'ollama', model: null };
+const VALID_PROVIDERS = new Set(['ollama', 'templated']);
 
 function read() {
   if (typeof window === 'undefined') return DEFAULT;
@@ -9,7 +10,13 @@ function read() {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT;
     const parsed = JSON.parse(raw);
-    return { ...DEFAULT, ...parsed };
+    const merged = { ...DEFAULT, ...parsed };
+    // Drop legacy provider values (e.g. "anthropic") so the UI doesn't render
+    // a dropdown stuck on an option that no longer exists.
+    if (!VALID_PROVIDERS.has(merged.provider)) {
+      return { ...DEFAULT };
+    }
+    return merged;
   } catch {
     return DEFAULT;
   }
