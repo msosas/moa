@@ -3,8 +3,8 @@
 .DEFAULT_GOAL := help
 
 # Compose project name keeps dev and prod stacks distinct.
-DEV_PROJECT  := finpath-dev
-PROD_PROJECT := finpath-prod
+DEV_PROJECT  := moa-dev
+PROD_PROJECT := moa-prod
 
 DEV_COMPOSE  := docker compose -p $(DEV_PROJECT) --env-file dev.env
 PROD_COMPOSE := docker compose -p $(PROD_PROJECT) -f docker-compose.prod.yml --env-file prod.env
@@ -24,7 +24,7 @@ dev:
 ## Start prod-optimized stack (detached)
 prod:
 	$(PROD_COMPOSE) up --build -d
-	@echo "FinPath AI is running. Frontend: http://localhost:5173  Backend: http://localhost:8000"
+	@echo "Moa is running. Frontend: http://localhost:5173  Backend: http://localhost:8000"
 
 ## Run backend unit tests
 test:

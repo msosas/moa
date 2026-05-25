@@ -3,8 +3,8 @@ services:
     build:
       context: ./backend
       target: prod
-    image: finpath-backend:prod
-    container_name: finpath-backend-prod
+    image: moa-backend:prod
+    container_name: moa-backend-prod
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
     environment:
       RATE_PROVIDER_TYPE: ${RATE_PROVIDER_TYPE:-live}
@@ -26,8 +26,8 @@ services:
         # Empty by default: the client uses same-origin relative ``/api/*`` and
         # nginx proxies it to the backend.
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
-    image: finpath-frontend:prod
-    container_name: finpath-frontend-prod
+    image: moa-frontend:prod
+    container_name: moa-frontend-prod
     ports:
       - "5173:80"
     depends_on:

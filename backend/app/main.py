@@ -15,7 +15,7 @@ logging.basicConfig(
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
-        title="FinPath AI",
+        title="Moa — Money Optimiser Advisor",
         version="0.2.0",
         description="Holistic NZ financial advisor: cash flow + debts + mortgage + KiwiSaver, "
                     "with a deterministic plan and an LLM-generated narrative.",

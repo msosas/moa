@@ -1,4 +1,4 @@
-# FinPath AI
+# Moa — Money Optimiser Advisor
 
 NZ holistic financial advisor POC. One unified intake (`FinancialProfile` — cash flow, debts, mortgage, KiwiSaver, lump sum, goals), one deterministic waterfall engine (financial order of operations), one LLM-generated conversational narrative.
 
@@ -82,5 +82,5 @@ frontend/src/
 ## Available automations
 
 - Skill `/api-contract` — verify frontend client matches backend OpenAPI / Pydantic models.
-- Skill `/finpath-rates-check` — smoke-test mock + live rate providers (user-only).
+- Skill `/moa-rates-check` — smoke-test mock + live rate providers (user-only).
 - Subagent `finance-math-reviewer` — audits `logic/finance.py`, `logic/waterfall.py`, and `logic/nz_tax.py` on change.

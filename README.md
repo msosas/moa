@@ -1,4 +1,4 @@
-# FinPath AI
+# Moa — Money Optimiser Advisor
 
 A holistic, NZ-flavoured financial advisor POC. You describe your money in one form — cash flow, debts, mortgage, KiwiSaver, lump sum, goals — and get back a prioritised plan (financial order of operations) explained in plain English by an LLM, with the option to "what if" the mortgage and download the result as PDF.
 
