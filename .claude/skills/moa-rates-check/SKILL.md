@@ -1,10 +1,10 @@
 ---
-name: finpath-rates-check
-description: Smoke-test the mock and live rate providers, including the "live API failed, fall back to mock" path that the demo relies on. Use when the user runs /finpath-rates-check or asks to verify the rates pipeline is healthy. Reports provider behavior and TTL cache state, never modifies code.
+name: moa-rates-check
+description: Smoke-test the mock and live rate providers, including the "live API failed, fall back to mock" path that the demo relies on. Use when the user runs /moa-rates-check or asks to verify the rates pipeline is healthy. Reports provider behavior and TTL cache state, never modifies code.
 disable-model-invocation: true
 ---
 
-# finpath-rates-check
+# moa-rates-check
 
 `ExternalRatesService` is the only place this POC talks to the outside world. The README's hard rule is **the demo must never break** — `LiveProvider` swallows every exception and returns mock data tagged `source="live-fallback"`. This skill verifies that contract still holds and that the cached singleton wiring isn't subtly broken.
 
@@ -13,7 +13,7 @@ disable-model-invocation: true
 1. **Run the targeted rates test suite** through the dev container so the environment matches `make test`:
 
    ```
-   docker compose -p finpath-dev --env-file dev.env run --rm --no-deps backend \
+   docker compose -p moa-dev --env-file dev.env run --rm --no-deps backend \
      pytest tests/test_rates.py -v
    ```
 
@@ -35,7 +35,7 @@ disable-model-invocation: true
 3. **Live-key sanity check (optional).** Only if the user has explicitly set `RATE_PROVIDER_TYPE=live` and a non-placeholder `API_NINJAS_KEY` in `dev.env` or `prod.env`, run a one-shot via the container:
 
    ```
-   docker compose -p finpath-dev --env-file dev.env run --rm --no-deps backend \
+   docker compose -p moa-dev --env-file dev.env run --rm --no-deps backend \
      python -c "import asyncio; from app.services.rates import LiveProvider; \
                 import os; \
                 snap = asyncio.run(LiveProvider(api_key=os.environ.get('API_NINJAS_KEY')).get_market_snapshot()); \

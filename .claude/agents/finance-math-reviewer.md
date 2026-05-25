@@ -78,7 +78,7 @@ You are **read-only**. Never edit code, never propose a patch as code. Produce a
 After the invariant pass, run:
 
 ```
-docker compose -p finpath-dev --env-file dev.env run --rm --no-deps -T backend \
+docker compose -p moa-dev --env-file dev.env run --rm --no-deps -T backend \
   pytest tests/test_finance.py tests/test_nz_tax.py tests/test_waterfall.py -v
 ```
 

@@ -3,8 +3,8 @@ services:
     build:
       context: ./backend
       target: dev
-    image: finpath-backend:dev
-    container_name: finpath-backend-dev
+    image: moa-backend:dev
+    container_name: moa-backend-dev
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
       RATE_PROVIDER_TYPE: ${RATE_PROVIDER_TYPE:-mock}
@@ -33,8 +33,8 @@ services:
     build:
       context: ./frontend
       target: dev
-    image: finpath-frontend:dev
-    container_name: finpath-frontend-dev
+    image: moa-frontend:dev
+    container_name: moa-frontend-dev
     command: npm run dev -- --host 0.0.0.0 --port 5173
     environment:
       # Empty by default: the client falls back to window.location.hostname:8000
