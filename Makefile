@@ -6,8 +6,13 @@
 DEV_PROJECT  := moa-dev
 PROD_PROJECT := moa-prod
 
-DEV_COMPOSE  := docker compose -p $(DEV_PROJECT) --env-file dev.env
-PROD_COMPOSE := docker compose -p $(PROD_PROJECT) -f docker-compose.prod.yml --env-file prod.env
+# Only pass --env-file when the file exists, so `clean` can tear down a stack
+# even on a machine that lacks the other stack's env file (e.g. no prod.env on a dev box).
+DEV_ENV_FLAG  := $(if $(wildcard dev.env),--env-file dev.env,)
+PROD_ENV_FLAG := $(if $(wildcard prod.env),--env-file prod.env,)
+
+DEV_COMPOSE  := docker compose -p $(DEV_PROJECT) $(DEV_ENV_FLAG)
+PROD_COMPOSE := docker compose -p $(PROD_PROJECT) -f docker-compose.prod.yml $(PROD_ENV_FLAG)
 
 ## Show this help (default)
 help:
